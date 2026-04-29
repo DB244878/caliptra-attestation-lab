@@ -21,8 +21,9 @@ The objective is to understand how a device proves its runtime state, and how a 
 | Firmware Measurement      |        | Allow / Deny Decision       |
 | Attestation (Sign)        |        |                             |
 +---------------------------+        +-----------------------------+
+
+        Attestation Evidence (MEASURE + SIGNATURE)
 ```
-          Attestation Evidence (MEASURE + SIGNATURE)
 
 ---
 
@@ -71,6 +72,30 @@ Verifier:
     -> Apply policy
     -> Allow / Deny decision
 ```
+
+---
+
+## Fleet-Level Simulation
+
+In addition to single-device verification, this project includes a fleet-level simulation:
+
+```bash
+python3 verifier/fleet_verifier.py
+```
+
+The simulation models a rack with 10 nodes:
+
+* 9 nodes running approved firmware
+* 1 node running unapproved firmware
+
+The verifier evaluates each node independently and produces a fleet summary:
+
+* Trusted nodes remain eligible for workloads
+* Untrusted nodes are quarantined
+
+This reflects real-world cloud behavior where:
+
+> Trust is evaluated per node, but decisions are applied at fleet level.
 
 ---
 
@@ -192,8 +217,8 @@ These are intentionally separate responsibilities:
 
 * Root key is software-based (not hardware-protected)
 * Cryptographic primitives are simplified
-* Single-node system
 * Serial interface instead of network API
+* No rollback / version enforcement yet
 
 ---
 
@@ -202,7 +227,7 @@ These are intentionally separate responsibilities:
 * Integrate ATECC608A secure element for hardware-backed key storage
 * Replace simulated signature with real ECC signing
 * Implement rollback protection (SVN / version enforcement)
-* Extend to multi-node / rack-level trust decisions
+* Extend to multi-node / rack-level trust decisions (real devices)
 * Replace serial communication with network-based API
 
 ---
@@ -216,4 +241,4 @@ This project demonstrates the fundamental separation between:
 * Device-side evidence generation (attestation)
 * Cloud-side trust decisions (policy enforcement)
 
-At scale, these decisions are made continuously across thousands of nodes, making the separation of evidence and policy critical to reliable and secure cloud operation.
+At scale, these decisions are made continuously across thousands of nodes, making this separation critical to reliable and secure cloud operation.
