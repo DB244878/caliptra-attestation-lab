@@ -22,6 +22,7 @@ The objective is to understand how a device proves its runtime state, and how a 
 | Attestation (Sign)        |        |                             |
 +---------------------------+        +-----------------------------+
 ```
+          Attestation Evidence (MEASURE + SIGNATURE)
 
 ---
 
