@@ -277,3 +277,36 @@ python3 verifier/verifier.py
 ```bash
 python3 verifier/fleet_verifier.py
 ```
+
+---
+
+## Control Plane (NEW)
+
+A Raspberry Pi acts as a **mini cloud control plane**, simulating how AWS/Azure make scheduling decisions based on hardware trust.
+
+### API Endpoints
+
+GET /nodes  
+POST /launch  
+
+### Behavior
+
+- Retrieves node trust state
+- Selects trusted nodes for workload placement
+- Denies launch if no trusted nodes are available
+
+---
+
+## Control Plane Flow
+
+```text
+User → API (/launch)
+   ↓
+Control Plane (Raspberry Pi)
+   ↓
+Verifier + Policy Engine
+   ↓
+Scheduler
+   ↓
+ALLOW / DENY decision
+
