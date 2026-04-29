@@ -4,7 +4,7 @@
 
 This project implements a minimal, end-to-end **reference model** of a hardware-rooted attestation system, inspired by modern cloud infrastructure security architectures such as Caliptra, AWS Nitro, and Azure attestation services.
 
-The objective is to understand how a device proves its runtime state, and how a cloud control plane evaluates that state to make trust decisions.
+The system demonstrates how a device proves its runtime state and how a cloud control plane evaluates that state to make trust decisions—extended with **rollback protection (SVN enforcement)**.
 
 ---
 
@@ -12,90 +12,88 @@ The objective is to understand how a device proves its runtime state, and how a 
 
 ### Architecture Overview
 
-```text
+```text id="arch1"
 +---------------------------+        +-----------------------------+
 | Device (Root of Trust)    |        | Cloud Verifier              |
 |---------------------------|        |-----------------------------|
 | ROM Boot                  |        | Signature Verification      |
 | DICE Identity Chain       | -----> | Policy Engine               |
-| Firmware Measurement      |        | Allow / Deny Decision       |
-| Attestation (Sign)        |        |                             |
+| Firmware Measurement      |        | SVN (Rollback) Enforcement  |
+| Attestation (Sign)        |        | Allow / Deny Decision       |
 +---------------------------+        +-----------------------------+
 
-        Attestation Evidence (MEASURE + SIGNATURE)
+        Attestation Evidence (MEASURE + SVN + SIGNATURE)
 ```
 
 ---
 
-The system consists of two logical components:
+## System Components
 
 ### 1. Device (Simulated Root of Trust)
 
-Implemented on an Arduino Mega 2560.
+Implemented on Arduino Mega 2560.
 
-The device models:
+Models:
 
 * ROM-style boot initialization
-* DICE-style identity derivation across stages
+* DICE-style identity derivation
 * Firmware measurement
-* Attestation generation (measurement + signature)
-* Mailbox-style command interface
+* Security Version Number (SVN)
+* Attestation generation
 
 ---
 
 ### 2. Verifier (Cloud Control Plane)
 
-Implemented in Python on macOS.
+Implemented in Python.
 
-The verifier models:
+Responsibilities:
 
-* Attestation request/response flow
 * Signature validation
-* Firmware policy enforcement
+* Firmware integrity validation
+* **Rollback protection (SVN policy)**
 * Trust decision (allow / deny)
 
 ---
 
 ## End-to-End Flow
 
-```text
+```text id="flow1"
 Device Boot:
-  ROM-style boot
-    -> Firmware measurement
-    -> DICE-style identity derivation
-    -> Attestation generation
+  ROM → Measure → Derive Identity → Generate Attestation
 
 Verifier:
   Request attestation
-    -> Validate signature
-    -> Compare measurement to approved baseline
-    -> Apply policy
-    -> Allow / Deny decision
+    → Validate signature
+    → Validate firmware measurement
+    → Enforce SVN (no rollback)
+    → Apply policy
+    → Allow / Deny
 ```
 
 ---
 
 ## Fleet-Level Simulation
 
-In addition to single-device verification, this project includes a fleet-level simulation:
+Run:
 
 ```bash
 python3 verifier/fleet_verifier.py
 ```
 
-The simulation models a rack with 10 nodes:
+Simulates a rack of 10 nodes:
 
-* 9 nodes running approved firmware
-* 1 node running unapproved firmware
+* 8 nodes → valid firmware (SVN = 2)
+* 1 node → rollback attack (SVN = 1)
+* 1 node → compromised firmware (SVN = 0)
 
-The verifier evaluates each node independently and produces a fleet summary:
+### Behavior:
 
-* Trusted nodes remain eligible for workloads
-* Untrusted nodes are quarantined
-
-This reflects real-world cloud behavior where:
-
-> Trust is evaluated per node, but decisions are applied at fleet level.
+```text id="fleet1"
+✔ Trusted nodes → allowed
+❌ Rollback node → blocked (SVN violation)
+❌ Compromised node → blocked (measurement mismatch)
+```
 
 ---
 
@@ -103,76 +101,60 @@ This reflects real-world cloud behavior where:
 
 ### Root of Trust (RoT)
 
-A foundational secret (`deviceSecret`) anchors identity and measurement.
+A foundational secret anchors identity derivation.
 
 ---
 
-### DICE-Style Identity Chain
+### DICE Identity Chain
 
-Identity evolves across stages:
-
-```text
-IDEV -> LDEV -> Runtime Identity
+```text id="dice1"
+IDEV → LDEV → Runtime Identity
 ```
 
-Each stage derives identity from:
-
-* Previous identity
-* Measured state
+Each stage derives identity from measured state.
 
 ---
 
 ### Firmware Measurement
 
-Firmware state is represented as a deterministic hash:
-
-```text
+```text id="measure1"
 MEASURE = hash(firmware)
 ```
 
-This simulates real-world measurements such as BIOS, BMC, or OS state.
+Represents BIOS / BMC / OS state.
 
 ---
 
 ### Attestation
 
-The device produces:
-
-```text
-MEASURE + SIGNATURE
+```text id="att1"
+MEASURE + SVN + SIGNATURE
 ```
 
-Where:
+* MEASURE → integrity
+* SVN → freshness
+* SIGNATURE → authenticity
 
-* `MEASURE` = firmware state
-* `SIGNATURE` = proof of authenticity (simulated)
+---
+
+### Rollback Protection (NEW)
+
+Security Version Number (SVN) prevents downgrade attacks.
+
+```text id="svn1"
+if svn < minimum_allowed:
+    reject device
+```
 
 ---
 
 ### Verifier Policy
 
-The verifier enforces an approved firmware baseline.
-
-Decision logic:
-
-```text
-if signature valid AND measurement approved:
-    TRUSTED
-else:
-    UNTRUSTED
+```text id="policy1"
+1. Signature must be valid
+2. Measurement must match approved firmware
+3. SVN must meet minimum requirement
 ```
-
----
-
-## Critical Insight
-
-Attestation answers: “What is this device running?”
-Policy answers: “Is that acceptable?”
-
-These are intentionally separate responsibilities:
-
-* The device provides evidence
-* The cloud enforces trust
 
 ---
 
@@ -180,65 +162,118 @@ These are intentionally separate responsibilities:
 
 ### Device
 
-* Platform: Arduino Mega 2560
-* Language: C++ (Arduino)
-* Communication: Serial (USB)
-* Crypto: Simulated hash and signature logic
+* Arduino Mega 2560
+* C++ (Arduino)
+* Serial communication
+* Simulated cryptography (to be replaced by hardware)
 
 ### Verifier
 
-* Platform: macOS
-* Language: Python
-* Interface: Serial (pyserial)
-* Functions:
-
-  * Request identity and attestation
-  * Validate signature
-  * Enforce firmware policy
+* Python
+* pyserial
+* Policy + validation logic
 
 ---
 
 ## Mapping to Real Systems
 
-| Lab Component | Real System Equivalent                      |
-| ------------- | ------------------------------------------- |
-| Arduino       | Server / platform firmware environment      |
-| deviceSecret  | Hardware root key (UDS / fuses / key vault) |
-| boot_rom()    | Immutable ROM boot                          |
-| derive()      | DICE / CDI derivation                       |
-| hashStr()     | SHA engine                                  |
-| Serial        | RPC / network / mailbox interface           |
-| verifier.py   | Cloud attestation service                   |
-| Policy check  | Security baseline enforcement               |
+| Lab Component    | Real System Equivalent    |
+| ---------------- | ------------------------- |
+| Arduino          | Server / host platform    |
+| ATECC (future)   | TPM / Caliptra / Nitro    |
+| deviceSecret     | Hardware root key         |
+| boot_rom()       | Immutable ROM             |
+| derive()         | DICE / CDI                |
+| hashStr()        | SHA engine                |
+| Serial           | RPC / network API         |
+| verifier.py      | Cloud attestation service |
+| SVN              | Firmware security version |
+| Fleet simulation | Data center rack          |
 
 ---
 
 ## Current Limitations
 
-* Root key is software-based (not hardware-protected)
-* Cryptographic primitives are simplified
-* Serial interface instead of network API
-* No rollback / version enforcement yet
+* Software-based root key (until ATECC integration)
+* Simplified cryptography
+* Serial instead of network API
+* No persistent device identity yet
 
 ---
 
 ## Next Steps
 
-* Integrate ATECC608A secure element for hardware-backed key storage
-* Replace simulated signature with real ECC signing
-* Implement rollback protection (SVN / version enforcement)
-* Extend to multi-node / rack-level trust decisions (real devices)
-* Replace serial communication with network-based API
+* Integrate ATECC608A (hardware root of trust)
+* Replace simulated signatures with real ECC
+* Add secure provisioning flow
+* Extend to network-based API
+* Add telemetry / monitoring
 
 ---
 
 ## Why This Matters
 
-Modern cloud infrastructure relies on hardware-rooted trust to ensure that only verified systems run workloads.
+Modern cloud platforms enforce trust at hardware level.
 
-This project demonstrates the fundamental separation between:
+This project models:
 
-* Device-side evidence generation (attestation)
-* Cloud-side trust decisions (policy enforcement)
+* Device-side trust (measurement + signing)
+* Cloud-side trust (policy + enforcement)
+* **Rollback protection (critical production requirement)**
 
-At scale, these decisions are made continuously across thousands of nodes, making this separation critical to reliable and secure cloud operation.
+At scale:
+
+```text id="scale1"
+Thousands of nodes
+→ continuous attestation
+→ automated isolation of compromised systems
+```
+
+---
+
+## Critical Insight
+
+Attestation answers:
+
+```text id="ci1"
+"What is this device running?"
+```
+
+Policy answers:
+
+```text id="ci2"
+"Is this acceptable?"
+```
+
+SVN enforcement ensures:
+
+```text id="ci3"
+"Is this sufficiently up-to-date?"
+```
+
+---
+
+## How to Run
+
+### Device
+
+* Open `device/mini_rot.ino`
+* Select Arduino Mega 2560
+* Upload
+
+---
+
+### Verifier
+
+```bash
+pip3 install -r verifier/requirements.txt
+python3 verifier/verifier.py
+```
+
+---
+
+### Fleet Simulation
+
+```bash
+python3 verifier/fleet_verifier.py
+```
