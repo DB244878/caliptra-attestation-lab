@@ -36,7 +36,7 @@ void setup() {
 
   boot_rom();
 
-  Serial.println("=== Mini Caliptra v2 ===");
+  Serial.println("=== Mini Hardware Root of Trust v2 ===");
   Serial.println("Device boot complete");
   Serial.println("Type: get_ids, measure, attest");
 }

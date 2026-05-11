@@ -40,7 +40,7 @@ def main():
         NodeQuote("node-e-bad-signature", "firmware_v1", "config_v1", 2, False, False),
     ]
 
-    print("=== Mini Caliptra Fleet Verifier ===")
+    print("=== Hardware Root of Trust Fleet Verifier ===")
     for quote in fleet:
         decision = verify_node(quote)
         print(f"{quote.node_id}: {decision}")

@@ -13,7 +13,7 @@ void setup() {
   Serial.begin(115200);
   delay(2000);
 
-  Serial.println("=== Mini Caliptra Hardware Attestation ===");
+  Serial.println("=== Hardware Root of Trust Attestation ===");
 
   Wire.begin(21, 22);
 
