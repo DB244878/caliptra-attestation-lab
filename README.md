@@ -1,6 +1,6 @@
-# Hardware Root of Trust Attestation Lab
+# Hardware Root of Trust Attestation
 
-A hands-on hardware security lab demonstrating a simplified hardware-backed attestation flow using an ESP32, ATECC608A secure element, and a Python verifier.
+A hands-on hardware security project demonstrating a simplified hardware-backed attestation flow using an ESP32, ATECC608A secure element, and a Python verifier.
 
 This project models how modern cloud infrastructure can determine whether a device or node should be trusted before allowing it into a secure fleet.
 
@@ -8,7 +8,7 @@ This project models how modern cloud infrastructure can determine whether a devi
 
 # What This Project Demonstrates
 
-This lab demonstrates core platform security concepts including:
+This project demonstrates core platform security concepts including:
 
 - Hardware root of trust
 - Device identity
